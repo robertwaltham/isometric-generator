@@ -1,0 +1,192 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>Generator</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000000;
+        }
+    </style>
+    <script src="resources/pixi.dev.js"></script>
+    <script src="resources/jquery-2.1.1.js"></script>
+    <script src="resources/jquery-ui-1.11.1/jquery-ui.js"></script>
+    <link href="resources/jquery-ui-1.11.1/jquery-ui.css" rel="stylesheet" type="text/css" title="Jquery UI">
+    <link href="resources/jquery-ui-1.11.1/jquery-ui.css" rel="stylesheet" type="text/css" title="Jquery UI">
+    <link href="resources/jquery-ui-1.11.1/jquery-ui.structure.css" rel="stylesheet" type="text/css" title="Jquery UI">
+    <link href="resources/jquery-ui-1.11.1/jquery-ui.theme.css" rel="stylesheet" type="text/css" title="Jquery UI">
+
+</head>
+<body>
+<script>
+
+    var Generator = {
+        options:{
+            tile_count_x:25,
+            tile_count_y:25,
+            tile_half_x: 20,
+            tile_half_y: 10,
+            tile_base_scale: 0.4,
+            offset_x: 640,
+            offset_y: 64,
+            canvas_width: 1280,
+            canvas_height: 900,
+            sprite_anchor: 0.5,
+            texture_paths:{
+                dirt:"resources/road/dirt.png",
+                grass:"resources/road/grass.png",
+                lot:"resources/road/lot.png"
+            },
+            texture_index:['dirt', 'grass', 'lot']
+        },
+        textures:[],
+        tiles:[],
+        sprites:[],
+        text:{
+            fps:null,
+            click:null
+        },
+        time:0,
+        frame_count:0,
+        stage:null,
+        renderer:null,
+        init:function(options){
+            // extend options
+            $.extend(this.options, {}, options);
+
+            console.log(this.options);
+
+            // load textures
+            for(var key in this.options.texture_paths){
+                this.textures[key] = PIXI.Texture.fromImage(this.options.texture_paths[key]);
+            }
+
+            // generate tiles
+            this.tiles = this.lib.generateTiles(this.options.tile_count_x, this.options.tile_count_y, this.options.texture_index);
+
+            var path = [{x:0,y:0}, {x:1,y:0}, {x:1,y:1}, {x:1,y:2}];
+
+            this.lib.addPath(this.tiles, path, 'grass');
+
+
+            // create an new instance of a pixi stage
+            this.stage = new PIXI.Stage(0x66FF99, true);
+            this.stage.interactive = true;
+
+            this.lib.generateSprites();
+
+            this.text.fps = new PIXI.Text("-", {font:"26px Arial", fill:"black"});
+            this.text.click = new PIXI.Text("-", {font:"26px Arial", fill:"black"});
+            this.text.click.position.y = 30;
+
+            this.stage.mousedown = function(data){
+                var pos = this.getMousePosition();
+                var tile = Generator.lib.isometricToOrtho(pos.x, pos.y,
+                        Generator.options.tile_half_x,
+                        Generator.options.tile_half_y,
+                        Generator.options.offset_x,
+                        Generator.options.offset_y,
+                        Generator.options.sprite_anchor);
+                if(tile.x > -1 && tile.y > -1 && tile.x < Generator.options.tile_count_x && tile.y < Generator.options.tile_count_y){
+                    Generator.text.click.setText('x: ' + tile.x + ' y:' + tile.y);
+                }
+            };
+
+            this.stage.addChild(this.text.fps);
+            this.stage.addChild(this.text.click);
+
+            this.renderer = PIXI.autoDetectRenderer(this.options.canvas_width, this.options.canvas_height);
+
+            // add the renderer view element to the DOM
+            document.body.appendChild(this.renderer.view);
+
+            this.time = Date.now();
+            // set up renderer
+            requestAnimFrame(this.lib.animate);
+
+        },
+        lib:{
+            generateTiles:function(count_x, count_y, textures){
+                var texture_size = textures.length;
+                var tiles = [];
+                for(var x = 0; x < count_x; x++){
+                    var col = [];
+                    for (var y = 0; y < count_y; y++){
+                        //var index = Math.random() * texture_size;
+                        col[y] = textures[0];
+                    }
+                    tiles[x] = col;
+                }
+                return tiles;
+            },
+            generateSprites:function(){
+                for(var i = 0; i < Generator.options.tile_count_x; i++){
+                    var sprite_col = [];
+                    for(var j = 0; j < Generator.options.tile_count_y; j++){
+                        var texture_def = Generator.tiles[i][j];
+                        var road = new PIXI.Sprite(Generator.textures[texture_def]);
+
+                        // center the sprites anchor point
+                        road.anchor.x = Generator.options.sprite_anchor;
+                        road.anchor.y = Generator.options.sprite_anchor;
+
+                        road.position = Generator.lib.orthoToIsometric(i, j,
+                                Generator.options.tile_half_x,
+                                Generator.options.tile_half_y,
+                                Generator.options.offset_x,
+                                Generator.options.offset_y);
+
+                        road.interactive = true;
+
+                        road.scale = new PIXI.Point(Generator.options.tile_base_scale, Generator.options.tile_base_scale);
+
+                        Generator.stage.addChild(road);
+                        sprite_col[j] = road;
+
+                    }
+                    Generator.sprites[i] = sprite_col;
+                }
+            },
+            addPath: function (tiles, path, texture) {
+                for (var index in path) {
+                    var path_node = path[index];
+                    tiles[path_node.x][path_node.y] = texture;
+                }
+            },
+            orthoToIsometric: function (x, y, half_width, half_height, offset_x, offset_y) {
+                var u = (x - y) * half_width + offset_x;
+                var v = (x + y) * half_height + offset_y;
+                var w = x + y;
+                return {x: u, y: v, z: w};
+            },
+            isometricToOrtho: function (u, v, half_width, half_height, offset_x, offset_y, sprite_anchor) {
+                var _u = (u - offset_x) / half_width;
+                var _v = (v - offset_y ) / half_height;
+
+                var x = Math.floor(((_u + _v ) / 2) + sprite_anchor);
+                var y = Math.floor(((_v - _u ) / 2) + sprite_anchor);
+                return {x: x, y: y};
+            },
+            animate: function() {
+                if(Generator.frame_count % 10 == 0){
+                    var diff = (Date.now() - Generator.time) / 1000;
+                    Generator.text.fps.setText(Math.round(1 / diff) + ' fps');
+                }
+                requestAnimFrame(Generator.lib.animate);
+
+                // render the stage
+                Generator.renderer.render(Generator.stage);
+                Generator.time = Date.now();
+                Generator.frame_count++;
+            }
+        }
+    };
+
+    $(document).ready(function(){
+        Generator.init({});
+    });
+
+</script>
+</body>
+</html>
