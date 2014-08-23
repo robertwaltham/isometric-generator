@@ -19,6 +19,7 @@
 
 </head>
 <body>
+
 <script>
 
     var Generator = {
@@ -43,6 +44,7 @@
         textures:[],
         tiles:[],
         sprites:[],
+        highlightedTile:null,
         text:{
             fps:null,
             click:null
@@ -63,18 +65,18 @@
             }
 
             // generate tiles
-            this.tiles = this.lib.generateTiles(this.options.tile_count_x, this.options.tile_count_y, this.options.texture_index);
 
             var path = [{x:0,y:0}, {x:1,y:0}, {x:1,y:1}, {x:1,y:2}];
 
-            this.lib.addPath(this.tiles, path, 'grass');
+            //this.lib.addPath(this.tiles, path, 'grass');
 
 
             // create an new instance of a pixi stage
             this.stage = new PIXI.Stage(0x66FF99, true);
             this.stage.interactive = true;
 
-            this.lib.generateSprites();
+            this.tiles = this.lib.generateTiles(this.options, this.stage);
+            console.log(this.tiles);
 
             this.text.fps = new PIXI.Text("-", {font:"26px Arial", fill:"black"});
             this.text.click = new PIXI.Text("-", {font:"26px Arial", fill:"black"});
@@ -90,6 +92,11 @@
                         Generator.options.sprite_anchor);
                 if(tile.x > -1 && tile.y > -1 && tile.x < Generator.options.tile_count_x && tile.y < Generator.options.tile_count_y){
                     Generator.text.click.setText('x: ' + tile.x + ' y:' + tile.y);
+                    if(this.highlightedTile){
+                        this.highlightedTile.sprite.alpha = 1.0;
+                    }
+                    this.highlightedTile = Generator.tiles[tile.x][tile.y];
+                    this.highlightedTile.sprite.alpha = 0.5;
                 }
             };
 
@@ -106,47 +113,42 @@
             requestAnimFrame(this.lib.animate);
 
         },
+        obj:{
+            Tile:function(options, texture_def, x, y){
+                this.sprite = Generator.lib.spriteFactory(options, Generator.textures[texture_def], x, y);
+                this.x = x;
+                this.y = y;
+            }
+        },
         lib:{
-            generateTiles:function(count_x, count_y, textures){
-                var texture_size = textures.length;
+            generateTiles:function(options, stage){
                 var tiles = [];
-                for(var x = 0; x < count_x; x++){
+                for(var x = 0; x < options.tile_count_x; x++){
                     var col = [];
-                    for (var y = 0; y < count_y; y++){
-                        //var index = Math.random() * texture_size;
-                        col[y] = textures[0];
+                    for (var y = 0; y < options.tile_count_y; y++){
+                        var tile = new Generator.obj.Tile(options, 'grass', x, y);
+                        col[y] = tile;
+                        stage.addChild(tile.sprite);
                     }
                     tiles[x] = col;
                 }
                 return tiles;
             },
-            generateSprites:function(){
-                for(var i = 0; i < Generator.options.tile_count_x; i++){
-                    var sprite_col = [];
-                    for(var j = 0; j < Generator.options.tile_count_y; j++){
-                        var texture_def = Generator.tiles[i][j];
-                        var road = new PIXI.Sprite(Generator.textures[texture_def]);
+            spriteFactory:function(options, texture, x, y){
+                var sprite = new PIXI.Sprite(texture);
+                // center the sprites anchor point
+                sprite.anchor.x = options.sprite_anchor;
+                sprite.anchor.y = options.sprite_anchor;
 
-                        // center the sprites anchor point
-                        road.anchor.x = Generator.options.sprite_anchor;
-                        road.anchor.y = Generator.options.sprite_anchor;
+                sprite.position = Generator.lib.orthoToIsometric(x, y,
+                        options.tile_half_x,
+                        options.tile_half_y,
+                        options.offset_x,
+                        options.offset_y);
 
-                        road.position = Generator.lib.orthoToIsometric(i, j,
-                                Generator.options.tile_half_x,
-                                Generator.options.tile_half_y,
-                                Generator.options.offset_x,
-                                Generator.options.offset_y);
+                sprite.scale = new PIXI.Point(options.tile_base_scale, options.tile_base_scale);
 
-                        road.interactive = true;
-
-                        road.scale = new PIXI.Point(Generator.options.tile_base_scale, Generator.options.tile_base_scale);
-
-                        Generator.stage.addChild(road);
-                        sprite_col[j] = road;
-
-                    }
-                    Generator.sprites[i] = sprite_col;
-                }
+                return sprite;
             },
             addPath: function (tiles, path, texture) {
                 for (var index in path) {
