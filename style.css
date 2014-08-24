@@ -1,0 +1,43 @@
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #000000;
+}
+#stage{
+    width:1000px;
+    height:500px;
+    float:left;
+}
+#sidebar{
+    width:280px;
+    height:500px;
+    background-color: #ffffff;
+    float:left;
+}
+.clear{
+    clear: both;
+}
+#log{
+    width:1280px;
+    height:150px;
+    background-color: #eeeeee;
+    overflow-y: scroll;
+}
+#log div{
+    width: 100%;
+}
+
+#sidebar > .selected {
+    padding: 5px;
+}
+
+#sidebar .texture{
+    width:100px;
+    height:63px;
+}
+
+#sidebar .texture-pad{
+    width:100%;
+    padding: 5px 70px 5px 70px;
+}
+

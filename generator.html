@@ -2,13 +2,7 @@
 <html>
 <head>
     <title>Generator</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: #000000;
-        }
-    </style>
+    <link href="style.css" rel="stylesheet" type="text/css" title="Style">
     <script src="resources/pixi.dev.js"></script>
     <script src="resources/jquery-2.1.1.js"></script>
     <script src="resources/jquery-ui-1.11.1/jquery-ui.js"></script>
@@ -20,21 +14,42 @@
 </head>
 <body>
 
+<div id="stage">
+
+</div>
+<div id="sidebar">
+    <div class="selected">
+        <div class="texture-pad">
+            <img class="texture" src="resources/road/dirt.png">
+        </div>
+        <div class="list-pad">
+            <ul>
+                <li>Dirt</li>
+                <li>X: 0, Y: 0</li>
+            </ul>
+        </div>
+    </div>
+</div>
+<div class="clear"></div>
+<div id="log">
+
+</div>
+
 <script>
 
     var Generator = {
         options:{
-            view_tc_width:25,
-            view_tc_height:25,
+            view_tc_width:20,
+            view_tc_height:20,
             tile_count_x:50,
             tile_count_y:50,
             tile_half_x: 20,
             tile_half_y: 10,
             tile_base_scale: 0.4,
-            offset_x: 640,
+            offset_x: 500,
             offset_y: 64,
-            canvas_width: 1280,
-            canvas_height: 900,
+            canvas_width: 1000,
+            canvas_height: 500,
             sprite_anchor: 0.5,
             texture_paths:{
                 dirt:"resources/road/dirt.png",
@@ -57,8 +72,13 @@
         viewOrigin:{x:0, y:0},
         text:{
             fps:null,
-            click:null,
+           // click:null,
             viewport:null
+        },
+        sidebar:{
+            texture:null,
+            list:null,
+            log:null
         },
         time:0,
         frame_count:0,
@@ -79,11 +99,15 @@
                 };
             }
 
+            // external UI elements
+            this.sidebar.texture = $('#sidebar .texture');
+            this.sidebar.list = $('#sidebar ul');
+            this.sidebar.log = $('#log');
 
             // extend options
             $.extend(this.options, {}, options);
 
-            console.log(this.options);
+            Generator.lib.logMessage('Starting');
 
             // load textures
             for(var key in this.options.texture_paths){
@@ -107,27 +131,34 @@
 
             //text
             this.text.fps = new PIXI.Text("-", {font:"26px Arial", fill:"black"});
-            this.text.click = new PIXI.Text("-", {font:"26px Arial", fill:"black"});
-            this.text.click.position.y = 30;
             var rect = this.lib.getViewRect();
             this.text.viewport = new PIXI.Text("", {font:"26px Arial", fill:"black"});
-            this.text.viewport.position.y = 60;
+            this.text.viewport.position.y = 30;
 
             //controls
-            this.controls['north'] = new PIXI.Sprite(this.textures.north);
+            this.controls['north'] = new PIXI.Sprite(this.textures.dirt);
             this.controls['north'].shift = {x:0, y:-1};
+            this.controls['north'].x = 92;
+            this.controls['north'].y = 400;
 
-            this.controls['south'] = new PIXI.Sprite(this.textures.south);
-            this.controls['south'].shift = {x:0, y:1};
-
-            this.controls['west'] = new PIXI.Sprite(this.textures.west);
+            this.controls['west'] = new PIXI.Sprite(this.textures.dirt);
             this.controls['west'].shift = {x:-1, y:0};
+            this.controls['west'].x = 50;
+            this.controls['west'].y = 400;
 
-            this.controls['east'] = new PIXI.Sprite(this.textures.east);
+            this.controls['east'] = new PIXI.Sprite(this.textures.dirt);
             this.controls['east'].shift = {x:1, y:0};
+            this.controls['east'].x = 92;
+            this.controls['east'].y = 425;
+
+            this.controls['south'] = new PIXI.Sprite(this.textures.dirt);
+            this.controls['south'].shift = {x:0, y:1};
+            this.controls['south'].x = 50;
+            this.controls['south'].y = 425;
 
 
-            var i = 100;
+
+
             for(var ctrl in this.controls){
                 this.controls[ctrl].interactive = true;
                 this.controls[ctrl].name = ctrl;
@@ -140,9 +171,6 @@
                 this.controls[ctrl].mouseup = this.controls[ctrl].mouseout = function(data){
                     this.alpha = 1;
                 };
-                this.controls[ctrl].position.y = i;
-                this.controls[ctrl].position.x = 10;
-                i += 30;
             }
 
 
@@ -155,12 +183,11 @@
                         Generator.options.offset_y,
                         Generator.options.sprite_anchor);
                 if(tile.x > -1 && tile.y > -1 && tile.x < Generator.options.tile_count_x && tile.y < Generator.options.tile_count_y){
-                    Generator.text.click.setText('x: ' + tile.x + ' y:' + tile.y);
-                    if(this.highlightedTile){
-                        this.highlightedTile.sprite.alpha = 1.0;
-                    }
+                   // Generator.text.click.setText('x: ' + tile.x + ' y:' + tile.y);
+
                     this.highlightedTile = Generator.tiles[tile.x][tile.y];
-                    this.highlightedTile.sprite.alpha = 0.5;
+                    Generator.lib.logMessage("Selected: (" + tile.x + ", " + tile.y + ")");
+                    Generator.lib.updateSelectedTile(this.highlightedTile);
                 }
             };
 
@@ -175,7 +202,8 @@
             this.renderer = PIXI.autoDetectRenderer(this.options.canvas_width, this.options.canvas_height);
 
             // add the renderer view element to the DOM
-            document.body.appendChild(this.renderer.view);
+            //document.body.appendChild(this.renderer.view);
+            $('#stage').append(this.renderer.view);
 
             this.time = Date.now();
 
@@ -188,6 +216,7 @@
         obj:{
             Tile:function(options, texture_def, x, y){
                 this.sprite = Generator.lib.spriteFactory(options, Generator.textures[texture_def], x, y);
+                this.texture_def = texture_def;
                 this.x = x;
                 this.y = y;
             }
@@ -224,6 +253,9 @@
                     }
                 }
                 Generator.text.viewport.setText("({0}, {1}, {2}, {3} )".format(rect.x1, rect.x2, rect.y1, rect.y2));
+
+                Generator.lib.logMessage("View port: ({0}, {1}, {2}, {3} )".format(rect.x1, rect.x2, rect.y1, rect.y2));
+
 
             },
             getViewRect:function(){
@@ -287,6 +319,18 @@
                 Generator.renderer.render(Generator.stage);
                 Generator.time = Date.now();
                 Generator.frame_count++;
+            },
+            logMessage: function(message){
+                Generator.sidebar.log.append('<div> [' + Date.now() + '] ' + message + '</div>');
+                Generator.sidebar.log.scrollTop(Generator.sidebar.log.prop("scrollHeight"));
+
+            },
+            updateSelectedTile: function(tile){
+                Generator.sidebar.texture.prop('src', Generator.options.texture_paths[tile.texture_def]);
+                Generator.sidebar.list.empty();
+                Generator.sidebar.list.append('<li>{0}</li>'.format(tile.texture_def));
+                Generator.sidebar.list.append('<li>x:{0}, y:{1}</li>'.format(tile.x, tile.y));
+
             }
         }
     };
