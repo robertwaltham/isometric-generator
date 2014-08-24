@@ -237,7 +237,8 @@
                 for(var x = 0; x < options.tile_count_x; x++){
                     var col = [];
                     for (var y = 0; y < options.tile_count_y; y++){
-                        var tile = new Generator.obj.Tile(options, 'grass', x, y);
+                        var index = Math.floor(Math.random() * 3);
+                        var tile = new Generator.obj.Tile(options, Generator.options.texture_index[index], x, y);
                         col[y] = tile;
                         stage.addChild(tile.sprite);
                     }
