@@ -20,7 +20,8 @@ var Generator = {
             east:"resources/road/lotCornerEast.png",
             west:"resources/road/lotCornerWest.png",
             north:"resources/road/lotCornerNorth.png",
-            south:"resources/road/lotCornerSouth.png"
+            south:"resources/road/lotCornerSouth.png",
+            actor:"resources/dwarf.png"
 
         },
         texture_minimap_colors:{
@@ -33,8 +34,10 @@ var Generator = {
     textures:[],
     tiles:[],
     tileParent:null,
+    actorParent:null,
     sprites:[],
     controls:[],
+    actors:[],
     highlightedTile:null,
     viewOrigin:{x:0, y:0},
     minimap:null,
@@ -94,6 +97,20 @@ var Generator = {
         this.tileParent.height = this.options.canvas_height;
         this.tileParent.interactive = true;
         this.stage.addChild(this.tileParent);
+
+        //actor parent
+        this.actorParent = new PIXI.DisplayObjectContainer();
+        this.actorParent.width = this.options.canvas_width;
+        this.actorParent.height = this.options.canvas_height;
+        this.actorParent.position = new PIXI.Point(this.options.offset_x, this.options.offset_y);
+        this.stage.addChild(this.actorParent);
+
+        //actors
+        var actor_sprite = new PIXI.Sprite(this.textures['actor']);
+        actor_sprite.anchor = new PIXI.Point(this.options.sprite_anchor, 1);
+        actor_sprite.scale = new PIXI.Point(0.08, 0.08);
+        this.actors.push(new Actor(1, 1, actor_sprite));
+        this.actorParent.addChild(actor_sprite);
 
         //tiles
         this.tiles = this.lib.generateTiles(this.options, this.tileParent);
@@ -186,6 +203,7 @@ var Generator = {
                 // Generator.text.click.setText('x: ' + tile.x + ' y:' + tile.y);
 
                 this.highlightedTile = Generator.tiles[tile.x][tile.y];
+                Generator.actors[0].addDestination(tile.x, tile.y);
                 Generator.lib.logMessage("Selected: (" + tile.x + ", " + tile.y + ")");
                 Generator.lib.updateSelectedTile(this.highlightedTile);
             }
@@ -231,6 +249,9 @@ var Generator = {
             Generator.tileParent.position.x +=  shift.x;
             Generator.tileParent.position.y +=  shift.y;
 
+            Generator.actorParent.position.x +=  shift.x;
+            Generator.actorParent.position.y +=  shift.y;
+
             Generator.viewOrigin.x -= x;
             Generator.viewOrigin.y -= y;
 
@@ -243,8 +264,8 @@ var Generator = {
                     if(tile.x > rect.x1 &&  tile.x < rect.x2 &&  tile.y > rect.y1 && tile.y < rect.y2){
                         tile.sprite.alpha = 1;
                         tile.sprite.visible = true;
-                    }else if(((tile.x == rect.x1 || tile.x == rect.x2) && (tile.y >= rect.y1 &&tile.y <= rect.y2)) ||
-                        ((tile.y == rect.y1 || tile.y == rect.y2) && (tile.x >= rect.x1 &&tile.x <= rect.x2))){
+                    }else if(((tile.x == rect.x1 || tile.x == rect.x2) && (tile.y >= rect.y1 && tile.y <= rect.y2)) ||
+                        ((tile.y == rect.y1 || tile.y == rect.y2) && (tile.x >= rect.x1 && tile.x <= rect.x2))){
                         tile.sprite.alpha = 0.25;
                         tile.sprite.visible = true;
 
@@ -253,6 +274,10 @@ var Generator = {
                         tile.sprite.visible = false;
                     }
                 }
+            }
+
+            for(var actor_index in Generator.actors){
+                Generator.actors[actor_index].updateAlphaForViewRect(rect);
             }
 
             Generator.minimap_widget.position = new PIXI.Point(rect.x1 * Generator.minimap_tile_size,
@@ -314,16 +339,23 @@ var Generator = {
             return {x: x, y: y};
         },
         animate: function() {
+            var diff = (Date.now() - Generator.time) / 1000;
+
             if(Generator.frame_count % 10 == 0){
-                var diff = (Date.now() - Generator.time) / 1000;
                 Generator.text.fps.setText(Math.round(1 / diff) + ' fps');
             }
-            requestAnimFrame(Generator.lib.animate);
+
+            for(var actor_index in Generator.actors){
+                Generator.actors[actor_index].update(diff);
+            }
 
             // render the stage
             Generator.renderer.render(Generator.stage);
             Generator.time = Date.now();
             Generator.frame_count++;
+
+            requestAnimFrame(Generator.lib.animate);
+
         },
         logMessage: function(message){
             Generator.sidebar.log.append('<div> [' + Date.now() + '] ' + message + '</div>');
@@ -336,6 +368,50 @@ var Generator = {
             Generator.sidebar.list.append('<li>{0}</li>'.format(tile.texture_def));
             Generator.sidebar.list.append('<li>x:{0}, y:{1}</li>'.format(tile.x, tile.y));
 
+        },
+        calculatePath: function(start, end){
+            var path = [];
+
+            if(end.x < 0 || end.y < 0 || end.x > Generator.options.tile_count_x || end.y > Generator.options.tile_count_y){
+                Generator.lib.logMessage('Error: invalid path');
+                return new Array(start);
+            }
+
+            if(start.x == end.x && start.y == end.y){
+                return new Array(start);
+            }
+
+            var last_point = new PIXI.Point(start.x, start.y);
+            var i = 0;
+            var message = 'Path: ';
+            while(true){
+                if(++i > 50){
+                    Generator.lib.logMessage('Error: path overflow');
+                    return new Array(start);
+                }
+                if(last_point.x == end.x && last_point.y == end.y){
+                    break;
+                }
+                var x = last_point.x;
+                var y = last_point.y;
+                if(end.x > last_point.x){
+                    x++;
+                }else if(end.x < last_point.x){
+                    x--;
+                }
+
+                if(end.y > last_point.y){
+                    y++;
+                }else if(end.y < last_point.y){
+                    y--;
+                }
+                last_point = new PIXI.Point(x, y);
+                message += '({0}, {1}) '.format(last_point.x, last_point.y);
+                path.push(last_point);
+
+            }
+            Generator.lib.logMessage(message);
+            return path;
         }
     }
 };
