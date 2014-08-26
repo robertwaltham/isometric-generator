@@ -12,6 +12,7 @@ var Generator = {
         canvas_width: 1000,
         canvas_height: 500,
         sprite_anchor: 0.5,
+        minimap_size:150,
         texture_paths:{
             dirt:"resources/road/dirt.png",
             grass:"resources/road/grass.png",
@@ -22,6 +23,11 @@ var Generator = {
             south:"resources/road/lotCornerSouth.png"
 
         },
+        texture_minimap_colors:{
+            dirt:0xBA793F,
+            grass:0x37D622,
+            lot:0x4D4D4D
+        },
         texture_index:['dirt', 'grass', 'lot']
     },
     textures:[],
@@ -31,6 +37,9 @@ var Generator = {
     controls:[],
     highlightedTile:null,
     viewOrigin:{x:0, y:0},
+    minimap:null,
+    minimap_tile_size: 0,
+    minimap_widget:null,
     text:{
         fps:null,
         // click:null,
@@ -117,9 +126,6 @@ var Generator = {
         this.controls['south'].x = 50;
         this.controls['south'].y = 425;
 
-
-
-
         for(var ctrl in this.controls){
             this.controls[ctrl].interactive = true;
             this.controls[ctrl].name = ctrl;
@@ -134,7 +140,40 @@ var Generator = {
             };
         }
 
+        //configure minimap
+        this.minimap = new PIXI.Graphics();
+        this.minimap.lineStyle(1, 0x000000, 1);
+        this.minimap.drawRect(-1, -1, this.options.minimap_size+1, this.options.minimap_size+1);
+        this.minimap.position = new PIXI.Point(this.options.canvas_width - this.options.minimap_size -1,
+            this.options.canvas_height - Generator.options.minimap_size -1);
+        this.minimap.lineStyle(0, 0x000000, 0);
 
+        this.minimap_tile_size = this.options.minimap_size / this.options.tile_count_x;
+        for(var col in this.tiles){
+            for(var tile_index in this.tiles[col]){
+                var tile = this.tiles[col][tile_index];
+                var color = this.options.texture_minimap_colors[tile.texture_def];
+                this.minimap.beginFill(color, 1);
+                this.minimap.drawRect(tile.x * this.minimap_tile_size,
+                    tile.y * this.minimap_tile_size,
+                    this.minimap_tile_size,
+                    this.minimap_tile_size);
+                this.minimap.endFill();
+            }
+        }
+
+        //configure selected area on minimap
+        this.minimap_widget = new PIXI.Graphics();
+        this.minimap_widget.lineStyle(1, 0x000000, 0.5);
+        this.minimap_widget.beginFill(0x000000, 0.2);
+        this.minimap_widget.drawRect(0,
+            0,
+            this.minimap_tile_size * this.options.view_tc_width,
+            this.minimap_tile_size * this.options.view_tc_height);
+        this.minimap_widget.endFill();
+        this.minimap.addChild(this.minimap_widget);
+
+        // configure selection events
         this.tileParent.mousedown = function(data){
             var pos = data.getLocalPosition(this);
             var tile = Generator.lib.isometricToOrtho(pos.x, pos.y,
@@ -152,6 +191,7 @@ var Generator = {
             }
         };
 
+        // add children to stage
         for(var text_label in this.text){
             this.stage.addChild(this.text[text_label]);
         }
@@ -159,6 +199,7 @@ var Generator = {
         for(var control in this.controls){
             this.stage.addChild(this.controls[control]);
         }
+        this.stage.addChild(this.minimap);
 
         this.renderer = PIXI.autoDetectRenderer(this.options.canvas_width, this.options.canvas_height);
 
@@ -213,6 +254,9 @@ var Generator = {
                     }
                 }
             }
+
+            Generator.minimap_widget.position = new PIXI.Point(rect.x1 * Generator.minimap_tile_size,
+                                                            rect.y1 * Generator.minimap_tile_size);
             Generator.text.viewport.setText("({0}, {1}, {2}, {3} )".format(rect.x1, rect.x2, rect.y1, rect.y2));
 
             Generator.lib.logMessage("View port: ({0}, {1}, {2}, {3} )".format(rect.x1, rect.x2, rect.y1, rect.y2));
