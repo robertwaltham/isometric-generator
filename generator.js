@@ -130,12 +130,12 @@ var Generator = {
             this.controls[ctrl].interactive = true;
             this.controls[ctrl].name = ctrl;
             this.controls[ctrl].scale = new PIXI.Point(0.4, 0.4);
-            this.controls[ctrl].mousedown = function(data){
+            this.controls[ctrl].mousedown = this.controls[ctrl].touchstart =  function(data){
                 Generator.lib.shiftView(this.shift.x, this.shift.y);
 
                 this.alpha = 0.75;
             };
-            this.controls[ctrl].mouseup = this.controls[ctrl].mouseout = function(data){
+            this.controls[ctrl].mouseup = this.controls[ctrl].touchend = this.controls[ctrl].touchendoutside =  this.controls[ctrl].mouseout = function(data){
                 this.alpha = 1;
             };
         }
@@ -174,7 +174,7 @@ var Generator = {
         this.minimap.addChild(this.minimap_widget);
 
         // configure selection events
-        this.tileParent.mousedown = function(data){
+        this.tileParent.mousedown = this.tileParent.touchstart = function(data){
             var pos = data.getLocalPosition(this);
             var tile = Generator.lib.isometricToOrtho(pos.x, pos.y,
                 Generator.options.tile_half_x,
