@@ -33,6 +33,7 @@ var Generator = {
     },
     textures:[],
     tiles:[],
+    uiParent:null,
     tileParent:null,
     actorParent:null,
     sprites:[],
@@ -91,6 +92,13 @@ var Generator = {
         this.stage = new PIXI.Stage(0x66FF99, true);
         this.stage.interactive = true;
 
+        //ui parents
+        this.uiParent = new PIXI.DisplayObjectContainer();
+        this.uiParent.width = this.options.canvas_width;
+        this.uiParent.height = this.options.canvas_height;
+        this.uiParent.interactive = true;
+        this.stage.addChild(this.uiParent);
+
         //tile parents
         this.tileParent = new PIXI.DisplayObjectContainer();
         this.tileParent.width = this.options.canvas_width;
@@ -109,7 +117,7 @@ var Generator = {
         var actor_sprite = new PIXI.Sprite(this.textures['actor']);
         actor_sprite.anchor = new PIXI.Point(this.options.sprite_anchor, 1);
         actor_sprite.scale = new PIXI.Point(0.08, 0.08);
-        this.actors.push(new Actor(1, 1, actor_sprite));
+        this.actors.push(new Actor(15, 15, actor_sprite));
         this.actorParent.addChild(actor_sprite);
 
         //tiles
@@ -122,40 +130,9 @@ var Generator = {
         this.text.viewport = new PIXI.Text("", {font:"26px Arial", fill:"black"});
         this.text.viewport.position.y = 30;
 
-        //controls
-        this.controls['north'] = new PIXI.Sprite(this.textures.dirt);
-        this.controls['north'].shift = {x:0, y:-1};
-        this.controls['north'].x = 92;
-        this.controls['north'].y = 400;
-
-        this.controls['west'] = new PIXI.Sprite(this.textures.dirt);
-        this.controls['west'].shift = {x:-1, y:0};
-        this.controls['west'].x = 50;
-        this.controls['west'].y = 400;
-
-        this.controls['east'] = new PIXI.Sprite(this.textures.dirt);
-        this.controls['east'].shift = {x:1, y:0};
-        this.controls['east'].x = 92;
-        this.controls['east'].y = 425;
-
-        this.controls['south'] = new PIXI.Sprite(this.textures.dirt);
-        this.controls['south'].shift = {x:0, y:1};
-        this.controls['south'].x = 50;
-        this.controls['south'].y = 425;
-
-        for(var ctrl in this.controls){
-            this.controls[ctrl].interactive = true;
-            this.controls[ctrl].name = ctrl;
-            this.controls[ctrl].scale = new PIXI.Point(0.4, 0.4);
-            this.controls[ctrl].mousedown = this.controls[ctrl].touchstart =  function(data){
-                Generator.lib.shiftView(this.shift.x, this.shift.y);
-
-                this.alpha = 0.75;
-            };
-            this.controls[ctrl].mouseup = this.controls[ctrl].touchend = this.controls[ctrl].touchendoutside =  this.controls[ctrl].mouseout = function(data){
-                this.alpha = 1;
-            };
-        }
+//        var toggle_button = Generator.ui.makeGraphicsControl('Test', function(){Generator.lib.logMessage('clicked')}, new PIXI.Rectangle(0, 0, 200, 50));
+//        toggle_button.position = new PIXI.Point(775, 0);
+//        this.stage.addChild(toggle_button);
 
         //configure minimap
         this.minimap = new PIXI.Graphics();
@@ -214,6 +191,7 @@ var Generator = {
             this.stage.addChild(this.text[text_label]);
         }
 
+        this.controls = this.ui.makeMiniMapControls();
         for(var control in this.controls){
             this.stage.addChild(this.controls[control]);
         }
@@ -227,7 +205,7 @@ var Generator = {
 
         this.time = Date.now();
 
-        this.lib.shiftView(0,0);
+        this.lib.shiftView(-10,-10);
 
         // set up renderer
         requestAnimFrame(this.lib.animate);
@@ -239,6 +217,74 @@ var Generator = {
             this.texture_def = texture_def;
             this.x = x;
             this.y = y;
+        }
+    },
+    ui:{
+        makeGraphicsControl:function(label, action, rect, font){
+            if(font == undefined){
+                font = { font: "bold 20px Arial" };
+            }
+
+            var control = new PIXI.Graphics();
+            control.bounds = rect;
+            control.interactive = true;
+            control.mousedown = control.touchend = function(data){
+                action(data);
+                control.alpha = 0.5;
+            };
+            control.mouseup = control.mouseout = control.touchend = control.touchendoutside = function(){
+                control.alpha = 1.0;
+            };
+
+            control.lineStyle(1, 0x000000, 0.5);
+            control.beginFill(0x000000, 0.2);
+            control.drawRect(2, 2, rect.width -2, rect.height-2);
+            control.endFill();
+
+            control.buttonMode = true;
+            control.hitArea = rect;
+
+            var text = new PIXI.Text(label, font);
+            control.addChild(text);
+            text.position = new PIXI.Point(
+                (rect.width - text.width) / 2,
+                (rect.height - text.height) / 2
+            );
+            control.text = text;
+            return control;
+        },
+        makeMiniMapControls:function(){
+            //controls
+            var control_bounds = new PIXI.Rectangle(0,0,50,25);
+            var font = { font: "bold 14px Arial" };
+            var controls = [];
+            controls['north'] = Generator.ui.makeGraphicsControl('north',
+                function(data){
+                    Generator.lib.shiftView(0, 1);
+                },
+                control_bounds, font);
+            controls['north'].x = 750;
+            controls['north'].y = 410;
+
+            controls['west'] = Generator.ui.makeGraphicsControl('west',  function(data){
+                Generator.lib.shiftView(1, 0);
+            }, control_bounds, font);
+            controls['west'].x = 715;
+            controls['west'].y = 440;
+
+            controls['east'] = Generator.ui.makeGraphicsControl('east',  function(data){
+                Generator.lib.shiftView(-1, 0);
+            },  control_bounds, font);
+            controls['east'].x = 785;
+            controls['east'].y = 440;
+
+            controls['south'] = Generator.ui.makeGraphicsControl('south',  function(data){
+                Generator.lib.shiftView(0, -1);
+            },  control_bounds, font);
+            controls['south'].x = 750;
+            controls['south'].y = 470;
+
+            return controls;
         }
     },
     lib:{
@@ -299,7 +345,22 @@ var Generator = {
             for(var x = 0; x < options.tile_count_x; x++){
                 var col = [];
                 for (var y = 0; y < options.tile_count_y; y++){
-                    var index = Math.floor(Math.random() * 3);
+                    var weight_y = y / options.tile_count_y;
+                    var weight_x = x / options.tile_count_x;
+
+                    var grass_weight = 2;
+
+                    var total = grass_weight + weight_y + weight_x;
+                    var index;
+                    var rnd = Math.random() * total;
+                    if(rnd < grass_weight){
+                        index = 1;
+                    }else if(rnd < grass_weight + weight_y){
+                        index = 0;
+                    }else{
+                        index = 2;
+                    }
+
                     var tile = new Generator.obj.Tile(options, Generator.options.texture_index[index], x, y);
                     col[y] = tile;
                     stage.addChild(tile.sprite);
