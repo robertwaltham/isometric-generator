@@ -54,10 +54,18 @@ var Generator = {
         list:null,
         log:null
     },
+    loadUI:{
+        generate:null,
+        load:null
+    },
+    stage_events:{
+        select_tile:null
+    },
     time:0,
     frame_count:0,
     stage:null,
     renderer:null,
+    paused:true,
     init:function(options){
 
         // First, checks if it isn't implemented yet.
@@ -78,10 +86,12 @@ var Generator = {
         this.sidebar.list = $('#sidebar ul');
         this.sidebar.log = $('#log');
 
+
+        Generator.lib.logMessage('Starting');
+
         // extend options
         $.extend(this.options, {}, options);
 
-        Generator.lib.logMessage('Starting');
 
         // load textures
         for(var key in this.options.texture_paths){
@@ -113,62 +123,14 @@ var Generator = {
         this.actorParent.position = new PIXI.Point(this.options.offset_x, this.options.offset_y);
         this.stage.addChild(this.actorParent);
 
-        //actors
-        var actor_sprite = new PIXI.Sprite(this.textures['actor']);
-        actor_sprite.anchor = new PIXI.Point(this.options.sprite_anchor, 1);
-        actor_sprite.scale = new PIXI.Point(0.08, 0.08);
-        this.actors.push(new Actor(15, 15, actor_sprite));
-        this.actorParent.addChild(actor_sprite);
-
-        //tiles
-        this.tiles = this.lib.generateTiles(this.options, this.tileParent);
-
-
         //text
         this.text.fps = new PIXI.Text("-", {font:"26px Arial", fill:"black"});
         var rect = this.lib.getViewRect();
         this.text.viewport = new PIXI.Text("", {font:"26px Arial", fill:"black"});
         this.text.viewport.position.y = 30;
 
-//        var toggle_button = Generator.ui.makeGraphicsControl('Test', function(){Generator.lib.logMessage('clicked')}, new PIXI.Rectangle(0, 0, 200, 50));
-//        toggle_button.position = new PIXI.Point(775, 0);
-//        this.stage.addChild(toggle_button);
-
-        //configure minimap
-        this.minimap = new PIXI.Graphics();
-        this.minimap.lineStyle(1, 0x000000, 1);
-        this.minimap.drawRect(-1, -1, this.options.minimap_size+1, this.options.minimap_size+1);
-        this.minimap.position = new PIXI.Point(this.options.canvas_width - this.options.minimap_size -1,
-            this.options.canvas_height - Generator.options.minimap_size -1);
-        this.minimap.lineStyle(0, 0x000000, 0);
-
-        this.minimap_tile_size = this.options.minimap_size / this.options.tile_count_x;
-        for(var col in this.tiles){
-            for(var tile_index in this.tiles[col]){
-                var tile = this.tiles[col][tile_index];
-                var color = this.options.texture_minimap_colors[tile.texture_def];
-                this.minimap.beginFill(color, 1);
-                this.minimap.drawRect(tile.x * this.minimap_tile_size,
-                    tile.y * this.minimap_tile_size,
-                    this.minimap_tile_size,
-                    this.minimap_tile_size);
-                this.minimap.endFill();
-            }
-        }
-
-        //configure selected area on minimap
-        this.minimap_widget = new PIXI.Graphics();
-        this.minimap_widget.lineStyle(1, 0x000000, 0.5);
-        this.minimap_widget.beginFill(0x000000, 0.2);
-        this.minimap_widget.drawRect(0,
-            0,
-            this.minimap_tile_size * this.options.view_tc_width,
-            this.minimap_tile_size * this.options.view_tc_height);
-        this.minimap_widget.endFill();
-        this.minimap.addChild(this.minimap_widget);
-
         // configure selection events
-        this.tileParent.mousedown = this.tileParent.touchstart = function(data){
+        this.stage_events.select_tile = function(data){
             var pos = data.getLocalPosition(this);
             var tile = Generator.lib.isometricToOrtho(pos.x, pos.y,
                 Generator.options.tile_half_x,
@@ -177,8 +139,6 @@ var Generator = {
                 Generator.options.offset_y,
                 Generator.options.sprite_anchor);
             if(tile.x > -1 && tile.y > -1 && tile.x < Generator.options.tile_count_x && tile.y < Generator.options.tile_count_y){
-                // Generator.text.click.setText('x: ' + tile.x + ' y:' + tile.y);
-
                 this.highlightedTile = Generator.tiles[tile.x][tile.y];
                 Generator.actors[0].addDestination(tile.x, tile.y);
                 Generator.lib.logMessage("Selected: (" + tile.x + ", " + tile.y + ")");
@@ -195,21 +155,91 @@ var Generator = {
         for(var control in this.controls){
             this.stage.addChild(this.controls[control]);
         }
-        this.stage.addChild(this.minimap);
 
         this.renderer = PIXI.autoDetectRenderer(this.options.canvas_width, this.options.canvas_height);
 
-        // add the renderer view element to the DOM
-        //document.body.appendChild(this.renderer.view);
         $('#stage').append(this.renderer.view);
 
         this.time = Date.now();
 
-        this.lib.shiftView(-10,-10);
+        this.loadUI.generate = this.ui.makeGraphicsControl('Generate World', function(){
+            Generator.generateAndDisplayTiles();
+
+        }, new PIXI.Rectangle(0,0,300,50));
+
+        this.loadUI.load = this.ui.makeGraphicsControl('Load World', function(){
+            $('#dialog').dialog({
+                modal: true,
+                minWidth: 650,
+                buttons: {
+                    close: function() {
+                        $( this ).dialog( "close" );
+                    }
+                }
+            });
+        }, new PIXI.Rectangle(0,0,300,50));
+
+        this.loadUI.generate.position = new PIXI.Point(300, 200);
+        this.loadUI.load.position = new PIXI.Point(300, 270);
+
+        this.uiParent.addChild(this.loadUI.generate);
+        this.uiParent.addChild(this.loadUI.load);
 
         // set up renderer
         requestAnimFrame(this.lib.animate);
+    },
+    generateAndDisplayTiles:function(){
+        Generator.lib.logMessage('Generating World');
 
+        Generator.tiles = Generator.lib.generateTiles(this.options, this.tileParent);
+
+        //actors
+        var actor_sprite = new PIXI.Sprite(this.textures['actor']);
+        actor_sprite.anchor = new PIXI.Point(this.options.sprite_anchor, 1);
+        actor_sprite.scale = new PIXI.Point(0.08, 0.08);
+        this.actors.push(new Actor(15, 15, actor_sprite));
+        this.actorParent.addChild(actor_sprite);
+
+        // make minimap
+        Generator.minimap_tile_size = Generator.options.minimap_size / Generator.options.tile_count_x;
+        Generator.minimap_widget = Generator.ui.generateMinimapWidget(Generator.minimap_tile_size, Generator.options);
+        Generator.minimap = Generator.ui.generateMinimap(Generator.options, Generator.tiles, Generator.minimap_tile_size, Generator.minimap_widget);
+        Generator.stage.addChild(Generator.minimap);
+
+        Generator.paused = false;
+        Generator.lib.shiftView(-10,-10);
+        Generator.time = Date.now();
+
+        Generator.uiParent.removeChild(Generator.loadUI.generate);
+        Generator.uiParent.removeChild(Generator.loadUI.load);
+        requestAnimFrame(this.lib.animate);
+    },
+    loadAndDisplayTiles:function(world_id){
+        Generator.lib.logMessage('Loading: ' + world_id);
+
+        var tile_json = localStorage[world_id];
+        Generator.tiles = Generator.lib.loadTiles(Generator.options, Generator.tileParent, tile_json);
+
+        //actors
+        var actor_sprite = new PIXI.Sprite(this.textures['actor']);
+        actor_sprite.anchor = new PIXI.Point(this.options.sprite_anchor, 1);
+        actor_sprite.scale = new PIXI.Point(0.08, 0.08);
+        this.actors.push(new Actor(15, 15, actor_sprite));
+        this.actorParent.addChild(actor_sprite);
+
+        // make minimap
+        Generator.minimap_tile_size = Generator.options.minimap_size / Generator.options.tile_count_x;
+        Generator.minimap_widget = Generator.ui.generateMinimapWidget(Generator.minimap_tile_size, Generator.options);
+        Generator.minimap = Generator.ui.generateMinimap(Generator.options, Generator.tiles, Generator.minimap_tile_size, Generator.minimap_widget);
+        Generator.stage.addChild(Generator.minimap);
+
+        Generator.paused = false;
+        Generator.lib.shiftView(0,0);
+        Generator.time = Date.now();
+
+        Generator.uiParent.removeChild(Generator.loadUI.generate);
+        Generator.uiParent.removeChild(Generator.loadUI.load);
+        requestAnimFrame(this.lib.animate);
     },
     obj:{
         Tile:function(options, texture_def, x, y){
@@ -285,10 +315,50 @@ var Generator = {
             controls['south'].y = 470;
 
             return controls;
+        },
+        generateMinimap:function(options, tiles, minimap_tile_size, widget){
+            //configure minimap
+            var minimap = new PIXI.Graphics();
+            minimap.lineStyle(1, 0x000000, 1);
+            minimap.drawRect(-1, -1, options.minimap_size+1, options.minimap_size+1);
+            minimap.position = new PIXI.Point(options.canvas_width - options.minimap_size -1,
+                                            options.canvas_height - options.minimap_size -1);
+            minimap.lineStyle(0, 0x000000, 0);
+
+            for(var col in tiles){
+                for(var tile_index in tiles[col]){
+                    var tile = tiles[col][tile_index];
+                    var color = options.texture_minimap_colors[tile.texture_def];
+                    minimap.beginFill(color, 1);
+                    minimap.drawRect(tile.x * minimap_tile_size,
+                        tile.y * minimap_tile_size,
+                        minimap_tile_size,
+                        minimap_tile_size);
+                    minimap.endFill();
+                }
+            }
+            minimap.addChild(widget);
+
+            return minimap;
+        },
+        generateMinimapWidget: function(minimap_tile_size, options){
+            //configure selected area on minimap
+            var minimap_widget = new PIXI.Graphics();
+            minimap_widget.lineStyle(1, 0x000000, 0.5);
+            minimap_widget.beginFill(0x000000, 0.2);
+            minimap_widget.drawRect(0,
+                0,
+                minimap_tile_size * options.view_tc_width,
+                minimap_tile_size * options.view_tc_height);
+            minimap_widget.endFill();
+            return minimap_widget;
         }
     },
     lib:{
         shiftView:function(x, y){
+            if(Generator.paused){
+                return;
+            }
             var shift = Generator.lib.orthoToIsometric(x , y, Generator.options.tile_half_x , Generator.options.tile_half_y, 0, 0 );
 
 
@@ -329,9 +399,7 @@ var Generator = {
             Generator.minimap_widget.position = new PIXI.Point(rect.x1 * Generator.minimap_tile_size,
                                                             rect.y1 * Generator.minimap_tile_size);
             Generator.text.viewport.setText("({0}, {1}, {2}, {3} )".format(rect.x1, rect.x2, rect.y1, rect.y2));
-
             Generator.lib.logMessage("View port: ({0}, {1}, {2}, {3} )".format(rect.x1, rect.x2, rect.y1, rect.y2));
-
 
         },
         getViewRect:function(){
@@ -340,10 +408,27 @@ var Generator = {
                 y1:Generator.viewOrigin.y,
                 y2:Generator.viewOrigin.y + Generator.options.view_tc_height};
         },
+        loadTiles:function(options, stage, tileJSON){
+            var tile_def = JSON.parse(tileJSON);
+            var tiles = [];
+            for(var x in tile_def){
+                var col = [];
+                for(var y in tile_def[x]){
+                    var tile = new Generator.obj.Tile(options, tile_def[x][y], parseInt(x), parseInt(y));
+                    stage.addChild(tile.sprite);
+                    col[y] = tile;
+                }
+                tiles[x] = col;
+            }
+            return tiles;
+
+        },
         generateTiles:function(options, stage){
             var tiles = [];
+            var tile_storage = [];
             for(var x = 0; x < options.tile_count_x; x++){
                 var col = [];
+                var col_storage = [];
                 for (var y = 0; y < options.tile_count_y; y++){
                     var weight_y = y / options.tile_count_y;
                     var weight_x = x / options.tile_count_x;
@@ -361,12 +446,20 @@ var Generator = {
                         index = 2;
                     }
 
-                    var tile = new Generator.obj.Tile(options, Generator.options.texture_index[index], x, y);
+                    var tile = new Generator.obj.Tile(options, options.texture_index[index], x, y);
+                    col_storage[y] = options.texture_index[index];
                     col[y] = tile;
                     stage.addChild(tile.sprite);
                 }
                 tiles[x] = col;
+                tile_storage[x] = col_storage;
             }
+
+            var saved_tiles = JSON.stringify(tile_storage);
+            var time = Date.now();
+            localStorage.setItem(time, saved_tiles);
+            Generator.lib.logMessage('Saved Tiles as {0}'.format(time));
+
             return tiles;
         },
         spriteFactory:function(options, texture, x, y){
@@ -389,7 +482,7 @@ var Generator = {
             var u = (x - y) * half_width + offset_x;
             var v = (x + y) * half_height + offset_y;
             var w = x + y;
-            return {x: u, y: v, z: w};
+            return new PIXI.Point(u, v);
         },
         isometricToOrtho: function (u, v, half_width, half_height, offset_x, offset_y, sprite_anchor) {
             var _u = (u - offset_x) / half_width;
@@ -415,7 +508,8 @@ var Generator = {
             Generator.time = Date.now();
             Generator.frame_count++;
 
-            requestAnimFrame(Generator.lib.animate);
+            if(!Generator.paused)
+                requestAnimFrame(Generator.lib.animate);
 
         },
         logMessage: function(message){

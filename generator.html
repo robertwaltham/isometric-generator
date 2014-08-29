@@ -7,9 +7,10 @@
     <script src="resources/jquery-2.1.1.js"></script>
     <script src="resources/jquery-ui-1.11.1/jquery-ui.js"></script>
     <link href="resources/jquery-ui-1.11.1/jquery-ui.css" rel="stylesheet" type="text/css" title="Jquery UI">
-    <link href="resources/jquery-ui-1.11.1/jquery-ui.css" rel="stylesheet" type="text/css" title="Jquery UI">
     <link href="resources/jquery-ui-1.11.1/jquery-ui.structure.css" rel="stylesheet" type="text/css" title="Jquery UI">
     <link href="resources/jquery-ui-1.11.1/jquery-ui.theme.css" rel="stylesheet" type="text/css" title="Jquery UI">
+    <link rel="stylesheet" href="//code.jquery.com/ui/1.11.1/themes/smoothness/jquery-ui.css">
+
     <script src="actor.js"></script>
     <script src="generator.js"></script>
 </head>
@@ -34,11 +35,32 @@
 
 </div>
 
+<div id="dialog" title="Load World" style="display:none;">
+    <table>
+
+    </table>
+</div>
+
 <script>
 
     $(document).ready(function(){
         Generator.init({});
     });
+
+    var load_world = function(id){
+        Generator.loadAndDisplayTiles(id);
+        $('#dialog').dialog('close');
+    };
+
+    var delete_world = function(id){
+        $('#' + id + '-row').remove();
+        localStorage.removeItem(id);
+    };
+
+    for(var world in localStorage){
+        var date = new Date(parseInt(world)).toString();
+        $('#dialog table').append('<tr id="'+world+'-row"> <td>'+date+'</td> <td><button onclick="load_world(\''+world+'\');">Open</button></td> <td><button onclick="delete_world(\''+world+'\');">Delete</button></td></tr>');
+    }
 
 </script>
 
