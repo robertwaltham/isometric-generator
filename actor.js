@@ -8,12 +8,12 @@ function Actor(x, y, sprite){
 Actor.prototype.update = function(time){
     this.count += time;
 
-    if(this.count > 5){
-        this.addDestination(Generator.viewOrigin.x +1, Generator.viewOrigin.y +1);
-        if(this.path != null){
-            Generator.lib.logMessage('{0} Going back to origin'.format(this.name));
-        }
-    }
+//    if(this.count > 5){
+//        this.addDestination(Generator.viewOrigin.x +1, Generator.viewOrigin.y +1);
+//        if(this.path != null){
+//            Generator.lib.logMessage('{0} Going back to origin'.format(this.name));
+//        }
+//    }
 
     if(this.path != null && this.next != null){
         if(this.count > this.speed){
@@ -62,7 +62,7 @@ Actor.prototype.sprite = null;
 Actor.prototype.position = null;
 Actor.prototype.count = 0;
 Actor.prototype.path = null;
-Actor.prototype.state = null;
+Actor.prototype.state = 'resting';
 Actor.prototype.next = null;
 Actor.prototype.speed = 0.5;
 Actor.prototype.name = 'Actor';

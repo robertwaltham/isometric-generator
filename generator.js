@@ -59,7 +59,14 @@ var Generator = {
         load:null
     },
     stage_events:{
-        select_tile:null
+        select_tile:null,
+        add_actor:null,
+        move_actor:null
+    },
+    stage_buttons:{
+        select_tile:null,
+        add_actor:null,
+        move_actor:null
     },
     time:0,
     frame_count:0,
@@ -125,12 +132,16 @@ var Generator = {
 
         //text
         this.text.fps = new PIXI.Text("-", {font:"26px Arial", fill:"black"});
+        this.text.fps.position = new PIXI.Point(10,10);
         var rect = this.lib.getViewRect();
         this.text.viewport = new PIXI.Text("", {font:"26px Arial", fill:"black"});
-        this.text.viewport.position.y = 30;
+        this.text.viewport.position = new PIXI.Point(10, 40);
 
         // configure selection events
         this.stage_events.select_tile = function(data){
+            if(Generator.tiles.length == 0){
+                return;
+            }
             var pos = data.getLocalPosition(this);
             var tile = Generator.lib.isometricToOrtho(pos.x, pos.y,
                 Generator.options.tile_half_x,
@@ -140,11 +151,92 @@ var Generator = {
                 Generator.options.sprite_anchor);
             if(tile.x > -1 && tile.y > -1 && tile.x < Generator.options.tile_count_x && tile.y < Generator.options.tile_count_y){
                 this.highlightedTile = Generator.tiles[tile.x][tile.y];
-                Generator.actors[0].addDestination(tile.x, tile.y);
+                //Generator.actors[0].addDestination(tile.x, tile.y);
                 Generator.lib.logMessage("Selected: (" + tile.x + ", " + tile.y + ")");
                 Generator.lib.updateSelectedTile(this.highlightedTile);
             }
         };
+
+        this.stage_events.move_actor = function(data){
+            if(Generator.tiles.length == 0){
+                return;
+            }
+            var pos = data.getLocalPosition(this);
+            var tile = Generator.lib.isometricToOrtho(pos.x, pos.y,
+                Generator.options.tile_half_x,
+                Generator.options.tile_half_y,
+                Generator.options.offset_x,
+                Generator.options.offset_y,
+                Generator.options.sprite_anchor);
+            if(tile.x > -1 && tile.y > -1 && tile.x < Generator.options.tile_count_x && tile.y < Generator.options.tile_count_y){
+                this.highlightedTile = Generator.tiles[tile.x][tile.y];
+
+                var available_actors = [];
+                for(var i in Generator.actors){
+                    var actor = Generator.actors[i];
+                    if(actor.state == 'resting'){
+                        available_actors.push(actor);
+                    }
+                }
+
+                if(available_actors.length > 0){
+                    var index = Math.floor(Math.random() * available_actors.length);
+                    available_actors[index].addDestination(tile.x, tile.y);
+                }else{
+
+                }
+
+                Generator.lib.logMessage("Selected: (" + tile.x + ", " + tile.y + ")");
+                Generator.lib.updateSelectedTile(this.highlightedTile);
+            }
+        };
+
+        this.stage_events.add_actor = function(data){
+            if(Generator.tiles.length == 0){
+                return;
+            }
+            var pos = data.getLocalPosition(this);
+            var tile = Generator.lib.isometricToOrtho(pos.x, pos.y,
+                Generator.options.tile_half_x,
+                Generator.options.tile_half_y,
+                Generator.options.offset_x,
+                Generator.options.offset_y,
+                Generator.options.sprite_anchor);
+            if(tile.x > -1 && tile.y > -1 && tile.x < Generator.options.tile_count_x && tile.y < Generator.options.tile_count_y){
+                this.highlightedTile = Generator.tiles[tile.x][tile.y];
+                //Generator.actors[0].addDestination(tile.x, tile.y);
+                Generator.lib.logMessage("Selected: (" + tile.x + ", " + tile.y + ")");
+                Generator.lib.updateSelectedTile(this.highlightedTile);
+
+                //actors
+                var actor_sprite = new PIXI.Sprite(Generator.textures['actor']);
+                actor_sprite.anchor = new PIXI.Point(Generator.options.sprite_anchor, 1);
+                actor_sprite.scale = new PIXI.Point(0.08, 0.08);
+                Generator.actors.push(new Actor(tile.x, tile.y, actor_sprite));
+                Generator.actorParent.addChild(actor_sprite);
+            }
+        };
+
+        // set up buttons to toggle UI interactivity state
+        Generator.stage_buttons.select_tile = this.ui.makeGraphicsControl('Select', function(){
+            Generator.ui.setStageInteracton('select_tile');
+        }, new PIXI.Rectangle(0, 0, 150, 35));
+
+        Generator.stage_buttons.move_actor = this.ui.makeGraphicsControl('Move', function(){
+            Generator.ui.setStageInteracton('move_actor');
+        }, new PIXI.Rectangle(0, 0, 150, 35));
+
+        Generator.stage_buttons.add_actor = this.ui.makeGraphicsControl('Add', function(){
+            Generator.ui.setStageInteracton('add_actor');
+        }, new PIXI.Rectangle(0, 0, 150, 35));
+
+        Generator.stage_buttons.add_actor.position = new PIXI.Point(800, 100);
+        Generator.stage_buttons.move_actor.position = new PIXI.Point(800, 55);
+        Generator.stage_buttons.select_tile.position = new PIXI.Point(800, 10);
+
+        this.uiParent.addChild(Generator.stage_buttons.select_tile);
+        this.uiParent.addChild(Generator.stage_buttons.move_actor);
+        this.uiParent.addChild(Generator.stage_buttons.add_actor);
 
         // add children to stage
         for(var text_label in this.text){
@@ -185,20 +277,14 @@ var Generator = {
         this.uiParent.addChild(this.loadUI.generate);
         this.uiParent.addChild(this.loadUI.load);
 
+        this.ui.setStageInteracton('select_tile');
+
         // set up renderer
         requestAnimFrame(this.lib.animate);
     },
     generateAndDisplayTiles:function(){
         Generator.lib.logMessage('Generating World');
-
         Generator.tiles = Generator.lib.generateTiles(this.options, this.tileParent);
-
-        //actors
-        var actor_sprite = new PIXI.Sprite(this.textures['actor']);
-        actor_sprite.anchor = new PIXI.Point(this.options.sprite_anchor, 1);
-        actor_sprite.scale = new PIXI.Point(0.08, 0.08);
-        this.actors.push(new Actor(15, 15, actor_sprite));
-        this.actorParent.addChild(actor_sprite);
 
         // make minimap
         Generator.minimap_tile_size = Generator.options.minimap_size / Generator.options.tile_count_x;
@@ -210,6 +296,13 @@ var Generator = {
         Generator.lib.shiftView(-10,-10);
         Generator.time = Date.now();
 
+        //actors
+        var actor_sprite = new PIXI.Sprite(Generator.textures['actor']);
+        actor_sprite.anchor = new PIXI.Point(Generator.options.sprite_anchor, 1);
+        actor_sprite.scale = new PIXI.Point(0.08, 0.08);
+        Generator.actors.push(new Actor(15, 15, actor_sprite));
+        Generator.actorParent.addChild(actor_sprite);
+
         Generator.uiParent.removeChild(Generator.loadUI.generate);
         Generator.uiParent.removeChild(Generator.loadUI.load);
         requestAnimFrame(this.lib.animate);
@@ -220,21 +313,21 @@ var Generator = {
         var tile_json = localStorage[world_id];
         Generator.tiles = Generator.lib.loadTiles(Generator.options, Generator.tileParent, tile_json);
 
-        //actors
-        var actor_sprite = new PIXI.Sprite(this.textures['actor']);
-        actor_sprite.anchor = new PIXI.Point(this.options.sprite_anchor, 1);
-        actor_sprite.scale = new PIXI.Point(0.08, 0.08);
-        this.actors.push(new Actor(15, 15, actor_sprite));
-        this.actorParent.addChild(actor_sprite);
-
         // make minimap
         Generator.minimap_tile_size = Generator.options.minimap_size / Generator.options.tile_count_x;
         Generator.minimap_widget = Generator.ui.generateMinimapWidget(Generator.minimap_tile_size, Generator.options);
         Generator.minimap = Generator.ui.generateMinimap(Generator.options, Generator.tiles, Generator.minimap_tile_size, Generator.minimap_widget);
         Generator.stage.addChild(Generator.minimap);
 
+        //actors
+        var actor_sprite = new PIXI.Sprite(Generator.textures['actor']);
+        actor_sprite.anchor = new PIXI.Point(Generator.options.sprite_anchor, 1);
+        actor_sprite.scale = new PIXI.Point(0.08, 0.08);
+        Generator.actors.push(new Actor(15, 15, actor_sprite));
+        Generator.actorParent.addChild(actor_sprite);
+
         Generator.paused = false;
-        Generator.lib.shiftView(0,0);
+        Generator.lib.shiftView(-10,-10);
         Generator.time = Date.now();
 
         Generator.uiParent.removeChild(Generator.loadUI.generate);
@@ -250,6 +343,18 @@ var Generator = {
         }
     },
     ui:{
+        setStageInteracton: function(function_name){
+            if($.inArray(function_name, Generator.stage_events)){
+                Generator.lib.logMessage('State: ' + function_name);
+                Generator.tileParent.mousedown = Generator.tileParent.touchstart = Generator.stage_events[function_name];
+                for(var button_type in Generator.stage_buttons){
+                    if(Generator.stage_buttons[button_type] != null){
+                        Generator.stage_buttons[button_type].scale = new PIXI.Point(0.95, 0.95);
+                    }
+                }
+                Generator.stage_buttons[function_name].scale = new PIXI.Point(1, 1);
+            }
+        },
         makeGraphicsControl:function(label, action, rect, font){
             if(font == undefined){
                 font = { font: "bold 20px Arial" };
