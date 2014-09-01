@@ -29,6 +29,7 @@ body {
 
 #sidebar > .selected {
     padding: 5px;
+    min-height: 200px;
 }
 
 #sidebar .texture{
@@ -39,5 +40,33 @@ body {
 #sidebar .texture-pad{
     width:100%;
     padding: 5px 70px 5px 70px;
+}
+
+#actor-list{
+    background-color: #efefef;
+    min-height: 300px;
+    overflow-y: scroll;
+}
+
+#actor-list .actor{
+    padding: 5px;
+    border-bottom: 1px solid black;
+}
+
+#actor-list .actor:nth-child(even){
+    background-color: #dfdfdf;
+}
+
+.actor .sprite{
+    width: 30px;
+    height: 30px;
+    padding: 5px;
+    float:left;
+}
+
+.actor .name,
+.actor .status{
+    width:200px;
+    margin-left: 45px;
 }
 

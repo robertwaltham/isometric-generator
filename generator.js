@@ -52,7 +52,9 @@ var Generator = {
     sidebar:{
         texture:null,
         list:null,
-        log:null
+        log:null,
+        actorList:null,
+        actorClone:null
     },
     loadUI:{
         generate:null,
@@ -92,6 +94,8 @@ var Generator = {
         this.sidebar.texture = $('#sidebar .texture');
         this.sidebar.list = $('#sidebar ul');
         this.sidebar.log = $('#log');
+        this.sidebar.actorList = $('#actor-list');
+        this.sidebar.actorClone = $('#actor-clone');
 
 
         Generator.lib.logMessage('Starting');
@@ -208,12 +212,7 @@ var Generator = {
                 Generator.lib.logMessage("Selected: (" + tile.x + ", " + tile.y + ")");
                 Generator.lib.updateSelectedTile(this.highlightedTile);
 
-                //actors
-                var actor_sprite = new PIXI.Sprite(Generator.textures['actor']);
-                actor_sprite.anchor = new PIXI.Point(Generator.options.sprite_anchor, 1);
-                actor_sprite.scale = new PIXI.Point(0.08, 0.08);
-                Generator.actors.push(new Actor(tile.x, tile.y, actor_sprite));
-                Generator.actorParent.addChild(actor_sprite);
+                Generator.lib.addActorOnTile(tile.x, tile.y);
             }
         };
 
@@ -296,12 +295,7 @@ var Generator = {
         Generator.lib.shiftView(-10,-10);
         Generator.time = Date.now();
 
-        //actors
-        var actor_sprite = new PIXI.Sprite(Generator.textures['actor']);
-        actor_sprite.anchor = new PIXI.Point(Generator.options.sprite_anchor, 1);
-        actor_sprite.scale = new PIXI.Point(0.08, 0.08);
-        Generator.actors.push(new Actor(15, 15, actor_sprite));
-        Generator.actorParent.addChild(actor_sprite);
+        Generator.lib.addActorOnTile(15,15);
 
         Generator.uiParent.removeChild(Generator.loadUI.generate);
         Generator.uiParent.removeChild(Generator.loadUI.load);
@@ -319,12 +313,7 @@ var Generator = {
         Generator.minimap = Generator.ui.generateMinimap(Generator.options, Generator.tiles, Generator.minimap_tile_size, Generator.minimap_widget);
         Generator.stage.addChild(Generator.minimap);
 
-        //actors
-        var actor_sprite = new PIXI.Sprite(Generator.textures['actor']);
-        actor_sprite.anchor = new PIXI.Point(Generator.options.sprite_anchor, 1);
-        actor_sprite.scale = new PIXI.Point(0.08, 0.08);
-        Generator.actors.push(new Actor(15, 15, actor_sprite));
-        Generator.actorParent.addChild(actor_sprite);
+        Generator.lib.addActorOnTile(15, 15);
 
         Generator.paused = false;
         Generator.lib.shiftView(-10,-10);
@@ -457,6 +446,15 @@ var Generator = {
                 minimap_tile_size * options.view_tc_height);
             minimap_widget.endFill();
             return minimap_widget;
+        },
+        makeActorStatus:function(name, status, id, texture_path){
+            var clone = Generator.sidebar.actorClone.clone();
+            clone.prop('id', id);
+            clone.find('.sprite').prop('src', texture_path);
+            clone.find('.name').html(name);
+            clone.find('.status').html(status);
+            Generator.sidebar.actorList.append(clone);
+            return clone;
         }
     },
     lib:{
@@ -672,6 +670,21 @@ var Generator = {
             }
             Generator.lib.logMessage(message);
             return path;
+        },
+        addActorOnTile:function(x, y){
+            //actors
+            var actor_sprite = new PIXI.Sprite(Generator.textures['actor']);
+            actor_sprite.anchor = new PIXI.Point(Generator.options.sprite_anchor, 1);
+            actor_sprite.scale = new PIXI.Point(0.08, 0.08);
+            var actor = new Actor(x, y, actor_sprite);
+            actor.id = Date.now();
+            actor.statusUI = Generator.ui.makeActorStatus(actor.id, actor.getStatusString(), actor.id, Generator.options.texture_paths['actor']);;
+
+            Generator.actors.push(actor);
+            Generator.actorParent.addChild(actor_sprite);
+
+
+
         }
     }
 };

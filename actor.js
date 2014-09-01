@@ -26,12 +26,12 @@ Actor.prototype.update = function(time){
                 this.position = new PIXI.Point(this.next.x, this.next.y);
                 this.path = null;
                 this.next = null;
-                this.state = 'resting';
+                this.setState('resting');
 
             }else{
                 this.next = this.path.shift();
                 this.count = 0;
-                this.state = 'waiting';
+                this.setState('waiting');
             }
         }else if(this.count > (this.speed / 2)){
 
@@ -51,8 +51,7 @@ Actor.prototype.update = function(time){
             }
 
             this.setPosition(interp.x , interp.y);
-
-            this.state = 'moving';
+            this.setState('moving');
         }
 
     }
@@ -66,6 +65,8 @@ Actor.prototype.state = 'resting';
 Actor.prototype.next = null;
 Actor.prototype.speed = 0.5;
 Actor.prototype.name = 'Actor';
+Actor.prototype.statusUI = null;
+Actor.prototype.id = null;
 Actor.prototype.setPosition = function(x, y){
 
     var position = Generator.lib.orthoToIsometric(x, y, Generator.options.tile_half_x, Generator.options.tile_half_y, 0, 0);
@@ -103,4 +104,19 @@ Actor.prototype.updateAlphaForViewRect = function(rect){
         this.sprite.alpha = 0;
         this.sprite.visible = false;
     }
-}
+};
+
+Actor.prototype.getStatusString = function(){
+    var status = '({0}, {1}) {2}'.format(this.position.x, this.position.y, this.state);
+    if(this.next != null){
+        status += ' ({0}, {1})'.format(this.next.x, this.next.y);
+    }
+    return status;
+};
+
+Actor.prototype.setState = function (state) {
+    this.state = state;
+    if (this.statusUI != null) {
+        this.statusUI.find('.status').html(this.getStatusString());
+    }
+};
