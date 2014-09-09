@@ -31,6 +31,7 @@ var Generator = {
         },
         texture_index:['dirt', 'grass', 'lot']
     },
+    worldID:null,
     textures:[],
     tiles:[],
     uiParent:null,
@@ -155,7 +156,6 @@ var Generator = {
                 Generator.options.sprite_anchor);
             if(tile.x > -1 && tile.y > -1 && tile.x < Generator.options.tile_count_x && tile.y < Generator.options.tile_count_y){
                 this.highlightedTile = Generator.tiles[tile.x][tile.y];
-                //Generator.actors[0].addDestination(tile.x, tile.y);
                 Generator.lib.logMessage("Selected: (" + tile.x + ", " + tile.y + ")");
                 Generator.lib.updateSelectedTile(this.highlightedTile);
             }
@@ -299,6 +299,7 @@ var Generator = {
 
         Generator.uiParent.removeChild(Generator.loadUI.generate);
         Generator.uiParent.removeChild(Generator.loadUI.load);
+        Generator.worldID = Date.now();
         requestAnimFrame(this.lib.animate);
     },
     loadAndDisplayTiles:function(world_id){
@@ -322,14 +323,6 @@ var Generator = {
         Generator.uiParent.removeChild(Generator.loadUI.generate);
         Generator.uiParent.removeChild(Generator.loadUI.load);
         requestAnimFrame(this.lib.animate);
-    },
-    obj:{
-        Tile:function(options, texture_def, x, y){
-            this.sprite = Generator.lib.spriteFactory(options, Generator.textures[texture_def], x, y);
-            this.texture_def = texture_def;
-            this.x = x;
-            this.y = y;
-        }
     },
     ui:{
         setStageInteracton: function(function_name){
@@ -424,8 +417,8 @@ var Generator = {
                     var tile = tiles[col][tile_index];
                     var color = options.texture_minimap_colors[tile.texture_def];
                     minimap.beginFill(color, 1);
-                    minimap.drawRect(tile.x * minimap_tile_size,
-                        tile.y * minimap_tile_size,
+                    minimap.drawRect(tile.tilePosition.x * minimap_tile_size,
+                        tile.tilePosition.y * minimap_tile_size,
                         minimap_tile_size,
                         minimap_tile_size);
                     minimap.endFill();
@@ -473,25 +466,14 @@ var Generator = {
 
             Generator.viewOrigin.x -= x;
             Generator.viewOrigin.y -= y;
+            var rect = Generator.lib.getViewRect();
 
             for(var col in Generator.tiles){
                 for(var tile_index in Generator.tiles[col]){
                     var tile = Generator.tiles[col][tile_index];
 
-                    var rect = Generator.lib.getViewRect();
+                    tile.updateAlphaForViewRect(rect)
 
-                    if(tile.x > rect.x1 &&  tile.x < rect.x2 &&  tile.y > rect.y1 && tile.y < rect.y2){
-                        tile.sprite.alpha = 1;
-                        tile.sprite.visible = true;
-                    }else if(((tile.x == rect.x1 || tile.x == rect.x2) && (tile.y >= rect.y1 && tile.y <= rect.y2)) ||
-                        ((tile.y == rect.y1 || tile.y == rect.y2) && (tile.x >= rect.x1 && tile.x <= rect.x2))){
-                        tile.sprite.alpha = 0.25;
-                        tile.sprite.visible = true;
-
-                    }else{
-                        tile.sprite.alpha = 0;
-                        tile.sprite.visible = false;
-                    }
                 }
             }
 
@@ -512,13 +494,16 @@ var Generator = {
                 y2:Generator.viewOrigin.y + Generator.options.view_tc_height};
         },
         loadTiles:function(options, stage, tileJSON){
+            console.log(stage);
             var tile_def = JSON.parse(tileJSON);
             var tiles = [];
             for(var x in tile_def){
                 var col = [];
                 for(var y in tile_def[x]){
-                    var tile = new Generator.obj.Tile(options, tile_def[x][y], parseInt(x), parseInt(y));
-                    stage.addChild(tile.sprite);
+
+                    var texture_def = tile_def[x][y];
+                    var tile = new Tile( parseInt(x), parseInt(y),  Generator.textures[texture_def], texture_def, options);
+                    stage.addChild(tile);
                     col[y] = tile;
                 }
                 tiles[x] = col;
@@ -548,11 +533,11 @@ var Generator = {
                     }else{
                         index = 2;
                     }
-
-                    var tile = new Generator.obj.Tile(options, options.texture_index[index], x, y);
+                    var texture_def = options.texture_index[index];
+                    var tile = new Tile( x, y,  Generator.textures[texture_def], texture_def, options);
                     col_storage[y] = options.texture_index[index];
                     col[y] = tile;
-                    stage.addChild(tile.sprite);
+                    stage.addChild(tile);
                 }
                 tiles[x] = col;
                 tile_storage[x] = col_storage;
@@ -624,7 +609,7 @@ var Generator = {
             Generator.sidebar.texture.prop('src', Generator.options.texture_paths[tile.texture_def]);
             Generator.sidebar.list.empty();
             Generator.sidebar.list.append('<li>{0}</li>'.format(tile.texture_def));
-            Generator.sidebar.list.append('<li>x:{0}, y:{1}</li>'.format(tile.x, tile.y));
+            Generator.sidebar.list.append('<li>x:{0}, y:{1}</li>'.format(tile.tilePosition.x, tile.tilePosition.y));
 
         },
         calculatePath: function(start, end){
