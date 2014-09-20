@@ -10,13 +10,40 @@
     <link href="resources/jquery-ui-1.11.1/jquery-ui.structure.css" rel="stylesheet" type="text/css" title="Jquery UI">
     <link href="resources/jquery-ui-1.11.1/jquery-ui.theme.css" rel="stylesheet" type="text/css" title="Jquery UI">
     <link rel="stylesheet" href="//code.jquery.com/ui/1.11.1/themes/smoothness/jquery-ui.css">
+    <link rel="stylesheet" href="bower_components/bootstrap/dist/css/bootstrap.css">
+    <link rel="stylesheet" href="bower_components/bootstrap/dist/css/bootstrap-theme.css">
+    <script src="bower_components/bootstrap/dist/js/bootstrap.js"></script>
+    <script src="bower_components/jquery/dist/jquery.js"></script>
 
     <script src="tile.js"></script>
     <script src="actor.js"></script>
     <script src="generator.js"></script>
 </head>
 <body>
+<nav class="navbar navbar-default" role="navigation">
+    <div class="container-fluid">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Rob's Projects</a>
+        </div>
 
+        <!-- Collect the nav links, forms, and other content for toggling -->
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav">
+                <li ><a href="/pathercraft/client/index.html">Panthercraft</a></li>
+                <li class="active"><a href="/generator/generator.html">Isometric Generator</a></li>
+
+            </ul>
+
+        </div>
+    </div>
+</nav>
 <div id="stage">
 
 </div>

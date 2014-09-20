@@ -1,0 +1,20 @@
+{
+  "name": "generator",
+  "main": "generator.js",
+  "version": "0.0.0",
+  "homepage": "https://github.com/blockoftext/isometric-generator",
+  "authors": [
+    "Robert Waltham <rob@blockoftext.com>"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "bootstrap": "~3.2.0"
+  }
+}

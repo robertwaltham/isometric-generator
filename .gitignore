@@ -1,5 +1,8 @@
 # Created by http://www.gitignore.io
 
+### Bower ###
+bower_components
+
 ### PhpStorm ###
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm
 
